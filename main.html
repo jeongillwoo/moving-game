@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>🌌 우주 피하기 게임</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: #000;
+      color: #fff;
+      text-align: center;
+      background-image: url('https://images.unsplash.com/photo-1473929737294-926c7ad095a1?auto=format&fit=crop&w=1280&q=80');
+      background-size: cover;
+    }
+
+    h1 {
+      margin-top: 20px;
+      font-size: 36px;
+      color: #fff;
+      text-shadow: 2px 2px 5px #000;
+    }
+
+    #info {
+      margin: 10px auto;
+      padding: 10px;
+      width: 80%;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 10px;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    #difficulty {
+      margin: 15px;
+      font-size: 16px;
+      padding: 5px 10px;
+    }
+
+    #startBtn {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #4caf50;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #score {
+      font-size: 20px;
+      margin-top: 10px;
+      color: #fff;
+      text-shadow: 1px 1px 3px #000;
+    }
+
+    #gameArea {
+      margin: 20px auto;
+      width: 600px;
+      height: 600px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 4px solid #ffffff;
+      border-radius: 10px;
+      position: relative;
+      overflow: hidden;
+      display: none;
+    }
+
+    #player {
+      width: 40px;
+      height: 40px;
+      background-image: url('https://cdn-icons-png.flaticon.com/512/3315/3315584.png');
+      background-size: cover;
+      position: absolute;
+      bottom: 10px;
+      left: 280px;
+    }
+
+    .obstacle {
+      width: 40px;
+      height: 40px;
+      position: absolute;
+      top: 0;
+      background-image: url('https://cdn-icons-png.flaticon.com/512/616/616602.png');
+      background-size: cover;
+    }
+
+    .item {
+      width: 40px;
+      height: 40px;
+      position: absolute;
+      top: 0;
+      border-radius: 50%;
+    }
+
+    .item-blue {
+      background-color: #4fc3f7;
+    }
+
+    .item-green {
+      background-color: #8bc34a;
+    }
+
+    .item-purple {
+      background-color: #ce93d8;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🚀 우주 피하기 게임</h1>
+
+  <div id="info">
+    <strong>🎁 아이템 효과 설명:</strong><br>
+    💙 <span style="color:#4fc3f7;">파란 구슬</span>: 장애물 속도 감소 + 점수 +3<br>
+    💚 <span style="color:#8bc34a;">초록 구슬</span>: 점수 +5<br>
+    💜 <span style="color:#ce93d8;">보라 구슬</span>: 우주비행사 작아짐 (5초간)<br>
+  </div>
+
+  <select id="difficulty">
+    <option value="beginner">초보자</option>
+    <option value="easy">쉬움</option>
+    <option value="normal" selected>보통</option>
+    <option value="hard">어려움</option>
+    <option value="insane">미쳤음</option>
+  </select>
+  <button id="startBtn">게임 시작</button>
+
+  <div id="score">점수: 0</div>
+  <div id="gameArea">
+    <div id="player"></div>
+  </div>
+
+  <script>
+    const gameArea = document.getElementById('gameArea');
+    const player = document.getElementById('player');
+    const scoreDisplay = document.getElementById('score');
+    const startBtn = document.getElementById('startBtn');
+    const difficultySelect = document.getElementById('difficulty');
+
+    let playerX = 280;
+    let score = 0;
+    let gameRunning = false;
+    let fallSpeed = 5;
+    let spawnInterval = 1000;
+    const areaWidth = 600;
+    const blockSize = 40;
+
+    const keyHandler = e => {
+      if (!gameRunning) return;
+      if (e.key === 'ArrowLeft' && playerX > 0) {
+        playerX -= 20;
+      } else if (e.key === 'ArrowRight' && playerX < areaWidth - blockSize) {
+        playerX += 20;
+      }
+      player.style.left = playerX + 'px';
+    };
+
+    document.addEventListener('keydown', keyHandler);
+
+    function createFaller(type) {
+      if (!gameRunning) return;
+
+      const elem = document.createElement('div');
+      elem.classList.add(type);
+      if (type.startsWith('item')) elem.classList.add('item'); // ⬅️ item 클래스 추가!
+
+      elem.style.left = Math.floor(Math.random() * 15) * blockSize + 'px';
+      gameArea.appendChild(elem);
+
+      let y = 0;
+      const interval = setInterval(() => {
+        if (!gameRunning) {
+          elem.remove();
+          clearInterval(interval);
+          return;
+        }
+
+        y += fallSpeed;
+        elem.style.top = y + 'px';
+
+        const elemX = parseInt(elem.style.left);
+
+        if (y > 550 && y < 600 && Math.abs(elemX - playerX) < blockSize) {
+          if (type === 'obstacle') {
+            gameOver();
+            clearInterval(interval);
+            return;
+          } else {
+            handleItem(type);
+            elem.remove();
+            clearInterval(interval);
+            return;
+          }
+        }
+
+        if (y > 600) {
+          elem.remove();
+          clearInterval(interval);
+          if (type === 'obstacle') {
+            score++;
+            updateScore();
+          }
+        }
+      }, 20);
+    }
+
+    function handleItem(type) {
+      if (type === 'item-blue') {
+        fallSpeed = Math.max(2, fallSpeed - 1);
+        score += 3;
+      } else if (type === 'item-green') {
+        score += 5;
+      } else if (type === 'item-purple') {
+        player.style.width = '30px';
+        player.style.height = '30px';
+        setTimeout(() => {
+          player.style.width = '40px';
+          player.style.height = '40px';
+        }, 5000);
+      }
+      updateScore();
+    }
+
+    function updateScore() {
+      scoreDisplay.innerText = '점수: ' + score;
+    }
+
+    function gameOver() {
+      gameRunning = false;
+      alert('💥 게임 오버! 점수: ' + score);
+      location.reload();
+    }
+
+    function startGame() {
+      const diff = difficultySelect.value;
+      switch (diff) {
+        case 'beginner':
+          fallSpeed = 2;
+          spawnInterval = 1300;
+          break;
+        case 'easy':
+          fallSpeed = 3;
+          spawnInterval = 1100;
+          break;
+        case 'normal':
+          fallSpeed = 5;
+          spawnInterval = 900;
+          break;
+        case 'hard':
+          fallSpeed = 7;
+          spawnInterval = 700;
+          break;
+        case 'insane':
+          fallSpeed = 10;
+          spawnInterval = 400;
+          break;
+      }
+
+      score = 0;
+      updateScore();
+      gameArea.style.display = 'block';
+      gameRunning = true;
+      spawnLoop();
+    }
+
+    function spawnLoop() {
+      const loop = setInterval(() => {
+        if (!gameRunning) {
+          clearInterval(loop);
+          return;
+        }
+
+        const rand = Math.random();
+        if (rand < 0.7) {
+          createFaller('obstacle');
+        } else if (rand < 0.8) {
+          createFaller('item-blue');
+        } else if (rand < 0.9) {
+          createFaller('item-green');
+        } else {
+          createFaller('item-purple');
+        }
+      }, spawnInterval);
+    }
+
+    startBtn.addEventListener('click', startGame);
+  </script>
+</body>
+</html>
